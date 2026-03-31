@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,40 +28,48 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import br.edu.satc.todolistcompose.data.TaskData
-import br.edu.satc.todolistcompose.mockTaskData
 import br.edu.satc.todolistcompose.ui.components.TaskCard
-import br.edu.satc.todolistcompose.ui.theme.ToDoListComposeTheme
+import br.edu.satc.todolistcompose.ui.viewmodel.TaskViewModel
 import kotlinx.coroutines.launch
 
-@Preview(showBackground = true)
 @Composable
-fun PreviewHomeScreen() {
-    ToDoListComposeTheme { HomeScreen() }
-}
-
-@Composable
-fun HomeScreen() {
+fun HomeScreen(viewModel: TaskViewModel?) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = 8.dp)
     ) {
         // Conteúdo principal (lista de items)
-        Content()
+        Content(viewModel)
 
         // Dialog new Task
-        NewTask()
+        NewTask(viewModel)
     }
 }
 
 @Composable
-fun Content() {
+fun Content(viewModel: TaskViewModel?) {
+    if (viewModel == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Carregando tarefas...")
+        }
+        return
+    }
+    
+    val tasks by viewModel.tasks.collectAsState(initial = emptyList())
     LazyColumn {
-        items(items = mockTaskData) { task ->
-            TaskCard(taskData = task, onTaskCheckedChange = { /*TODO*/ })
+        items(items = tasks) { task ->
+            TaskCard(
+                taskData = task,
+                onTaskCheckedChange = { isChecked ->
+                    viewModel.updateTask(task.copy(complete = isChecked))
+                },
+                onDelete = {
+                    viewModel.deleteTask(task.id)
+                }
+            )
         }
     }
 }
@@ -71,7 +80,7 @@ fun Content() {
  */
 
 @Composable
-fun NewTask() {
+fun NewTask(viewModel: TaskViewModel?) {
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var taskTitle by remember { mutableStateOf("") }
@@ -127,7 +136,7 @@ fun NewTask() {
                         }
 
                         // Salva nova task
-                        mockTaskData.add(
+                        viewModel?.insertTask(
                             TaskData(
                                 title = taskTitle,
                                 description = taskDescription,
